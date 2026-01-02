@@ -64,24 +64,55 @@ async function getSheet(): Promise<GoogleSpreadsheetWorksheet> {
   return sheet;
 }
 
-export async function getAppointments(): Promise<Appointment[]> {
-  const sheet = await getSheet();
-  const rows = await sheet.getRows();
-  return rows.map(row => {
-    const rowData = row.toObject();
-    return {
-      appointment_id: rowData.appointment_id,
-      created_at: rowData.created_at,
-      name: rowData.name,
-      phone: rowData.phone,
-      email: rowData.email,
-      preferred_date: rowData.preferred_date,
-      appointment_type: rowData.appointment_type,
-      notes: rowData.notes,
-      diagnosed: String(rowData.diagnosed).toLowerCase() === 'true',
-    } as Appointment;
-  });
+export async function addAppointment(data: {
+  name: string;
+  phone: string;
+  email?: string;
+  preferred_date: string;
+  appointment_type: string;
+  notes?: string;
+}) {
+  try {
+    const appointmentId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
+    const auth = new google.auth.JWT(
+      process.env.GOOGLE_CLIENT_EMAIL,
+      undefined,
+      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      ["https://www.googleapis.com/auth/spreadsheets"]
+    );
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const values = [
+      appointmentId,
+      createdAt,
+      data.name,
+      data.phone,
+      data.email ?? "",
+      data.preferred_date,
+      data.appointment_type,
+      data.notes ?? "",
+      false, // diagnosed default
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID!,
+      range: "A1",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [values],
+      },
+    });
+
+    return { appointment_id: appointmentId };
+  } catch (error) {
+    console.error("Google Sheets write error:", error);
+    throw new Error("Sheet insert failed");
+  }
 }
+
 
 export async function addAppointment(data: Omit<Appointment, 'appointment_id' | 'created_at' | 'diagnosed'> & {diagnosed?: boolean}) {
   const sheet = await getSheet();
