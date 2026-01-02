@@ -16,6 +16,11 @@ const getAuthAdapter = () => {
     throw new Error('Google Sheets API credentials are not configured correctly. Set GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY.');
   }
 
+  // VALIDATION: Check if key is actual PEM format
+  if (!PRIVATE_KEY.includes('-----BEGIN PRIVATE KEY-----') || !PRIVATE_KEY.includes('-----END PRIVATE KEY-----')) {
+    throw new Error('Invalid Key Format: The key must start with "-----BEGIN PRIVATE KEY-----" and end with "-----END PRIVATE KEY-----". You might have copied it wrong.');
+  }
+
   return new JWT({
     email: CLIENT_EMAIL,
     key: PRIVATE_KEY,
