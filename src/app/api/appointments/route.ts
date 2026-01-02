@@ -22,15 +22,31 @@ const updateSchema = z.object({
 
 /* ------------------ GET ------------------ */
 
+import { google } from "googleapis";
+
 export async function GET() {
-  return new Response(
-    JSON.stringify({
-      sheetId: !!process.env.GOOGLE_SHEET_ID,
-      email: !!process.env.GOOGLE_CLIENT_EMAIL,
-      key: !!process.env.GOOGLE_PRIVATE_KEY,
-    }),
-    { status: 200 }
-  );
+  try {
+    const auth = new google.auth.JWT(
+      process.env.GOOGLE_CLIENT_EMAIL,
+      undefined,
+      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      ["https://www.googleapis.com/auth/spreadsheets"]
+    );
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID!,
+      range: "Appointments!A2:F",
+    });
+
+    return new Response(JSON.stringify(res.data.values || []), {
+      status: 200,
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response("Failed to fetch appointments", { status: 500 });
+  }
 }
 
 /* ------------------ POST ------------------ */
