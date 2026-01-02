@@ -1,59 +1,62 @@
-import type { Appointment } from '@/lib/types';
-import AdminDashboard from '@/components/dashboard/AdminDashboard';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+export const dynamic = "force-dynamic";
 
-async function loadAppointments(): Promise<{ appointments?: Appointment[], error?: string }> {
-  try {
-    // Using an absolute URL is necessary for fetch in Server Components
-    // This will need to be replaced with the actual production URL in a real deployment
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
-    const res = await fetch(`${baseUrl}/api/appointments`, { cache: 'no-store' });
-    
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ message: 'Failed to fetch appointments. The server returned an invalid response.' }));
-      throw new Error(errorData.message || 'Failed to fetch appointments');
-    }
-    
-    const appointments = await res.json();
-    
-    // Ensure what we received is an array before trying to sort it
-    if (!Array.isArray(appointments)) {
-        console.error("API did not return an array of appointments:", appointments);
-        throw new Error('Invalid data format received from the server.');
-    }
+import React from "react";
 
-    return { 
-      appointments: appointments.sort((a: Appointment, b: Appointment) => new Date(b.preferred_date).getTime() - new Date(a.preferred_date).getTime()) 
-    };
-  } catch (error: any) {
-    console.error("Error loading appointments:", error.message);
-     if (error.message.includes('ECONNREFUSED')) {
-        return { error: `Could not connect to the backend server at ${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002'}. Please ensure the server is running and accessible.` };
-    }
-    if (error.message.includes('Google Sheets')) {
-        return { error: `Google Sheets API credentials are not configured correctly. Please make sure the following environment variables are set: GOOGLE_SHEET_ID, GOOGLE_CLIENT_EMAIL, and GOOGLE_PRIVATE_KEY. Error: ${error.message}` };
-    }
-    return { error: `An unexpected error occurred: ${error.message}` };
+/* ------------------ FETCH FUNCTION ------------------ */
+async function getAppointments() {
+  const res = await fetch("/api/appointment", {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load appointments");
   }
+
+  return res.json();
 }
 
+/* ------------------ PAGE ------------------ */
 export default async function AdminPage() {
-  const { appointments, error } = await loadAppointments();
+  let appointments = [];
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-          <Alert variant="destructive" className="max-w-2xl">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              {error}
-            </AlertDescription>
-          </Alert>
-      </div>
-    );
+  try {
+    appointments = await getAppointments();
+  } catch (error) {
+    console.error(error);
   }
 
-  return <AdminDashboard initialAppointments={appointments || []} />;
+  return (
+    <main style={{ padding: "20px" }}>
+      <h1>Admin Panel</h1>
+
+      {appointments.length === 0 ? (
+        <p>No appointments found.</p>
+      ) : (
+        <table border={1} cellPadding={10} style={{ marginTop: "20px" }}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appointments.map((a: any, index: number) => (
+              <tr key={index}>
+                <td>{a.name}</td>
+                <td>{a.phone}</td>
+                <td>{a.email || "-"}</td>
+                <td>{a.preferred_date}</td>
+                <td>{a.appointment_type}</td>
+                <td>{a.notes || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </main>
+  );
 }
