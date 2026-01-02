@@ -23,16 +23,10 @@ const updateSchema = z.object({
 /* ------------------ GET ------------------ */
 
 export async function GET() {
-  try {
-    const appointments = await getAppointments();
-    return NextResponse.json(appointments);
-  } catch (error) {
-    console.error("Failed to fetch appointments:", error);
-    return NextResponse.json(
-      { message: "Failed to fetch appointments" },
-      { status: 500 }
-    );
-  }
+  return new Response(
+    JSON.stringify({ ok: true, message: "API route working" }),
+    { status: 200 }
+  );
 }
 
 /* ------------------ POST ------------------ */
