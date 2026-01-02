@@ -1,18 +1,10 @@
 export const dynamic = "force-dynamic";
 
-import AdminUI from "./ui";
-
-async function getAppointments() {
-  try {
-    const res = await fetch("/api/appointment", { cache: "no-store" });
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
-  }
-}
-
-export default async function AdminPage() {
-  const appointments = await getAppointments();
-  return <AdminUI appointments={appointments} />;
+export default function AdminPage() {
+  return (
+    <main style={{ padding: 40 }}>
+      <h1>Admin Page</h1>
+      <p>If you see this, admin routing is working.</p>
+    </main>
+  );
 }
