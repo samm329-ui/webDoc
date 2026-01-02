@@ -4,7 +4,7 @@ import AdminUI from "./ui";
 
 async function getAppointments() {
   try {
-    const res = await fetch("/api/appointment", {
+    const res = await fetch("/api/appointments", {
       cache: "no-store",
     });
     if (!res.ok) return [];

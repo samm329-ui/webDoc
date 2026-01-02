@@ -1,9 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { addAppointment, updateAppointmentStatus } from "@/lib/google-sheets";
+import { addAppointment, updateAppointmentStatus, getAppointments } from "@/lib/google-sheets";
 import { z } from "zod";
-import { google } from "googleapis";
 
 /* ------------------ CORS ------------------ */
 
@@ -42,31 +41,9 @@ const updateSchema = z.object({
 
 export async function GET() {
   try {
-    const auth = new google.auth.JWT(
-      process.env.GOOGLE_CLIENT_EMAIL,
-      undefined,
-      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      ["https://www.googleapis.com/auth/spreadsheets"]
-    );
+    const data = await getAppointments();
 
-    const sheets = google.sheets({ version: "v4", auth });
-
-    const meta = await sheets.spreadsheets.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID!,
-    });
-
-    const sheetTitle = meta.data.sheets?.[0]?.properties?.title;
-
-    if (!sheetTitle) {
-      throw new Error("No sheet found");
-    }
-
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID!,
-      range: `${sheetTitle}!A2:I`,
-    });
-
-    return new Response(JSON.stringify(res.data.values || []), {
+    return new Response(JSON.stringify(data), {
       status: 200,
       headers: corsHeaders,
     });
