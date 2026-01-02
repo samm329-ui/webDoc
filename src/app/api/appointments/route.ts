@@ -1,17 +1,35 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { addAppointment, getAppointments, updateAppointmentStatus } from "@/lib/google-sheets";
+import { addAppointment, updateAppointmentStatus } from "@/lib/google-sheets";
 import { z } from "zod";
+import { google } from "googleapis";
+
+/* ------------------ CORS ------------------ */
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+/* ------------------ OPTIONS (MANDATORY) ------------------ */
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
 
 /* ------------------ SCHEMAS ------------------ */
 
 const appointmentSchema = z.object({
-  name: z.string().min(1, { message: "Name is required" }),
-  phone: z.string().min(1, { message: "Phone is required" }),
+  name: z.string().min(1),
+  phone: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
-  preferred_date: z.string().min(1, { message: "Preferred date is required" }),
-  appointment_type: z.enum(["Check-up", "Consultation", "Follow-up"]),
+  preferred_date: z.string().min(1),
+  appointment_type: z.string(),
   notes: z.string().optional(),
 });
 
@@ -21,8 +39,6 @@ const updateSchema = z.object({
 });
 
 /* ------------------ GET ------------------ */
-
-import { google } from "googleapis";
 
 export async function GET() {
   try {
@@ -35,20 +51,16 @@ export async function GET() {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // 1️⃣ Get spreadsheet metadata
     const meta = await sheets.spreadsheets.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID!,
     });
 
-    // 2️⃣ Take FIRST sheet automatically
-    const sheetTitle =
-      meta.data.sheets?.[0]?.properties?.title;
+    const sheetTitle = meta.data.sheets?.[0]?.properties?.title;
 
     if (!sheetTitle) {
       throw new Error("No sheet found");
     }
 
-    // 3️⃣ Read data from detected sheet
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID!,
       range: `${sheetTitle}!A2:I`,
@@ -56,10 +68,14 @@ export async function GET() {
 
     return new Response(JSON.stringify(res.data.values || []), {
       status: 200,
+      headers: corsHeaders,
     });
   } catch (error) {
     console.error("Sheets error:", error);
-    return new Response("Failed to fetch appointments", { status: 500 });
+    return new Response("Failed to fetch appointments", {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 }
 
@@ -71,29 +87,26 @@ export async function POST(request: Request) {
     const validation = appointmentSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json(
-        { message: "Invalid input", errors: validation.error.formErrors },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ message: "Invalid input" }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
     const newAppointment = await addAppointment(validation.data);
 
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         message: "Appointment created",
         appointment_id: newAppointment.appointment_id,
-      },
-      { status: 201 }
+      }),
+      { status: 201, headers: corsHeaders }
     );
   } catch (error) {
     console.error("Failed to create appointment:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    return NextResponse.json(
-      { message: "Failed to create appointment", error: errorMessage },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ message: "Failed to create appointment" }),
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -106,9 +119,9 @@ export async function PATCH(request: Request) {
     const validation = updateSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json(
-        { message: "Invalid input", errors: validation.error.formErrors },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ message: "Invalid input" }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -116,23 +129,21 @@ export async function PATCH(request: Request) {
     const result = await updateAppointmentStatus(appointment_id, diagnosed);
 
     if (!result.success) {
-      return NextResponse.json(
-        { message: result.message || "Failed to update appointment" },
-        { status: 404 }
+      return new Response(
+        JSON.stringify({ message: "Update failed" }),
+        { status: 404, headers: corsHeaders }
       );
     }
 
-    return NextResponse.json({
-      message: "Appointment updated successfully",
-    });
+    return new Response(
+      JSON.stringify({ message: "Appointment updated successfully" }),
+      { status: 200, headers: corsHeaders }
+    );
   } catch (error) {
     console.error("Failed to update appointment:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    return NextResponse.json(
-      { message: "Failed to update appointment", error: errorMessage },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ message: "Failed to update appointment" }),
+      { status: 500, headers: corsHeaders }
     );
   }
 }
