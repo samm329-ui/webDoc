@@ -88,8 +88,9 @@ export async function POST(request: Request) {
         { status: 409, headers: corsHeaders }
       );
     }
+    // EXPOSE THE REAL ERROR for debugging
     return new Response(
-      JSON.stringify({ message: "Failed to create appointment" }),
+      JSON.stringify({ message: `Backend Error: ${error.message || "Unknown error"}` }),
       { status: 500, headers: corsHeaders }
     );
   }

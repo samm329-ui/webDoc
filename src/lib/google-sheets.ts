@@ -4,8 +4,13 @@ import type { Appointment } from './types';
 
 // Initialize auth - using a singleton pattern for auth if possible
 const getAuthAdapter = () => {
-  const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
-  const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL?.replace(/^"|"$/g, '').trim();
+  let PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/^"|"$/g, ''); // Remove quotes if user added them
+
+  if (PRIVATE_KEY) {
+    // Handle both escaped newlines (from JSON) and real newlines
+    PRIVATE_KEY = PRIVATE_KEY.replace(/\\n/g, '\n');
+  }
 
   if (!CLIENT_EMAIL || !PRIVATE_KEY) {
     throw new Error('Google Sheets API credentials are not configured correctly. Set GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY.');
