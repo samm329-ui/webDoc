@@ -24,7 +24,11 @@ const updateSchema = z.object({
 
 export async function GET() {
   return new Response(
-    JSON.stringify({ ok: true, message: "API route working" }),
+    JSON.stringify({
+      sheetId: !!process.env.GOOGLE_SHEET_ID,
+      email: !!process.env.GOOGLE_CLIENT_EMAIL,
+      key: !!process.env.GOOGLE_PRIVATE_KEY,
+    }),
     { status: 200 }
   );
 }
