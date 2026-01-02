@@ -35,16 +35,30 @@ export async function GET() {
 
     const sheets = google.sheets({ version: "v4", auth });
 
+    // 1️⃣ Get spreadsheet metadata
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID!,
+    });
+
+    // 2️⃣ Take FIRST sheet automatically
+    const sheetTitle =
+      meta.data.sheets?.[0]?.properties?.title;
+
+    if (!sheetTitle) {
+      throw new Error("No sheet found");
+    }
+
+    // 3️⃣ Read data from detected sheet
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID!,
-      range: "Appointments!A2:I",
+      range: `${sheetTitle}!A2:I`,
     });
 
     return new Response(JSON.stringify(res.data.values || []), {
       status: 200,
     });
   } catch (error) {
-    console.error("Sheets fetch error:", error);
+    console.error("Sheets error:", error);
     return new Response("Failed to fetch appointments", { status: 500 });
   }
 }
