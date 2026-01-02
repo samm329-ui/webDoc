@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import React from "react";
 
-/* ------------------ FETCH FUNCTION ------------------ */
+/* ------------------ FETCH ------------------ */
 async function getAppointments() {
   const res = await fetch("/api/appointment", {
     cache: "no-store",
@@ -17,46 +17,66 @@ async function getAppointments() {
 
 /* ------------------ PAGE ------------------ */
 export default async function AdminPage() {
-  let appointments = [];
-
-  try {
-    appointments = await getAppointments();
-  } catch (error) {
-    console.error(error);
-  }
+  const appointments = await getAppointments();
 
   return (
-    <main style={{ padding: "20px" }}>
-      <h1>Admin Panel</h1>
+    <div style={styles.page}>
+      <h1 style={styles.heading}>Admin Panel</h1>
 
       {appointments.length === 0 ? (
         <p>No appointments found.</p>
       ) : (
-        <table border={1} cellPadding={10} style={{ marginTop: "20px" }}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {appointments.map((a: any, index: number) => (
-              <tr key={index}>
-                <td>{a.name}</td>
-                <td>{a.phone}</td>
-                <td>{a.email || "-"}</td>
-                <td>{a.preferred_date}</td>
-                <td>{a.appointment_type}</td>
-                <td>{a.notes || "-"}</td>
+        <div style={styles.tableWrapper}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Notes</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {appointments.map((a: any, i: number) => (
+                <tr key={i}>
+                  <td>{a.name}</td>
+                  <td>{a.phone}</td>
+                  <td>{a.email || "-"}</td>
+                  <td>{a.preferred_date}</td>
+                  <td>{a.appointment_type}</td>
+                  <td>{a.notes || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
+
+/* ------------------ STYLES ------------------ */
+const styles: any = {
+  page: {
+    padding: "24px",
+    fontFamily: "Arial, sans-serif",
+    backgroundColor: "#f7f7f7",
+    minHeight: "100vh",
+  },
+  heading: {
+    fontSize: "28px",
+    marginBottom: "20px",
+  },
+  tableWrapper: {
+    overflowX: "auto",
+    background: "#fff",
+    borderRadius: "8px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+};
