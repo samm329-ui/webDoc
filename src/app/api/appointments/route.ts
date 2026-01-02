@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const newAppointment = await addAppointment(validation.data);
+    const newAppointment = await addAppointment(validation.data as any);
 
     return new Response(
       JSON.stringify({
@@ -79,8 +79,15 @@ export async function POST(request: Request) {
       }),
       { status: 201, headers: corsHeaders }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to create appointment:", error);
+    // Return specific error message if it's a known logic error
+    if (error.message && error.message.includes("already have an appointment")) {
+      return new Response(
+        JSON.stringify({ message: error.message }),
+        { status: 409, headers: corsHeaders }
+      );
+    }
     return new Response(
       JSON.stringify({ message: "Failed to create appointment" }),
       { status: 500, headers: corsHeaders }
