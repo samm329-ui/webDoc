@@ -10,4 +10,5 @@ export type Appointment = {
   appointment_type: 'Check-up' | 'Consultation' | 'Follow-up';
   notes?: string;
   diagnosed: boolean;
+  prescription?: string;
 };

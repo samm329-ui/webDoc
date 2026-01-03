@@ -1,14 +1,14 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { addAppointment, updateAppointmentStatus, getAppointments } from "@/lib/google-sheets";
+import { addAppointment, updateAppointmentStatus, getAppointments, updatePrescription } from "@/lib/google-sheets";
 import { z } from "zod";
 
 /* ------------------ CORS ------------------ */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
@@ -35,6 +35,11 @@ const appointmentSchema = z.object({
 const updateSchema = z.object({
   appointment_id: z.string().min(1),
   diagnosed: z.boolean(),
+});
+
+const prescriptionSchema = z.object({
+  appointment_id: z.string().min(1),
+  prescription: z.string(),
 });
 
 /* ------------------ GET ------------------ */
@@ -128,6 +133,43 @@ export async function PATCH(request: Request) {
     console.error("Failed to update appointment:", error);
     return new Response(
       JSON.stringify({ message: "Failed to update appointment" }),
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
+/* ------------------ PUT (Prescription) ------------------ */
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const validation = prescriptionSchema.safeParse(body);
+
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ message: "Invalid input" }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const { appointment_id, prescription } = validation.data;
+    const result = await updatePrescription(appointment_id, prescription);
+
+    if (!result.success) {
+      return new Response(
+        JSON.stringify({ message: result.message || "Update failed" }),
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ message: "Prescription updated successfully" }),
+      { status: 200, headers: corsHeaders }
+    );
+  } catch (error) {
+    console.error("Failed to update prescription:", error);
+    return new Response(
+      JSON.stringify({ message: "Failed to update prescription" }),
       { status: 500, headers: corsHeaders }
     );
   }

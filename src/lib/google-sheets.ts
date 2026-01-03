@@ -4,8 +4,8 @@ import type { Appointment } from './types';
 
 // Initialize auth - using a singleton pattern for auth if possible
 const getAuthAdapter = () => {
-  const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL?.replace(/^"|"$/g, '').trim();
-  let PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/^"|"$/g, ''); // Remove quotes if user added them
+  const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL?.replace(/^\"|\"$/g, '').trim();
+  let PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/^\"|\"$/g, ''); // Remove quotes if user added them
 
   if (PRIVATE_KEY) {
     // Handle both escaped newlines (from JSON) and real newlines
@@ -64,6 +64,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       appointment_type: row.get('appointment_type'),
       notes: row.get('notes'),
       diagnosed: row.get('diagnosed') === 'TRUE' || row.get('diagnosed') === true,
+      prescription: row.get('prescription') || '',
     })) as Appointment[];
   } catch (error) {
     console.error("getAppointments: Error fetching data", error);
@@ -71,7 +72,7 @@ export async function getAppointments(): Promise<Appointment[]> {
   }
 }
 
-export async function addAppointment(data: Omit<Appointment, 'appointment_id' | 'created_at' | 'diagnosed'>) {
+export async function addAppointment(data: Omit<Appointment, 'appointment_id' | 'created_at' | 'diagnosed' | 'prescription'>) {
   const doc = await getDoc();
   let sheet = doc.sheetsByIndex[0];
 
@@ -86,6 +87,7 @@ export async function addAppointment(data: Omit<Appointment, 'appointment_id' | 
     'appointment_type',
     'notes',
     'diagnosed',
+    'prescription',
   ];
 
   if (!sheet) {
@@ -123,6 +125,7 @@ export async function addAppointment(data: Omit<Appointment, 'appointment_id' | 
     appointment_type: data.appointment_type,
     notes: data.notes || "",
     diagnosed: false,
+    prescription: "",
   };
 
   await sheet.addRow(newAppointment);
@@ -145,4 +148,26 @@ export async function updateAppointmentStatus(appointment_id: string, diagnosed:
   rowToUpdate.set('diagnosed', diagnosed);
   await rowToUpdate.save();
   return { success: true };
+}
+
+export async function updatePrescription(appointment_id: string, prescription: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const doc = await getDoc();
+    const sheet = doc.sheetsByIndex[0];
+    if (!sheet) return { success: false, message: "Sheet not found" };
+
+    const rows = await sheet.getRows();
+    const rowToUpdate = rows.find(row => row.get('appointment_id') === appointment_id);
+
+    if (!rowToUpdate) {
+      return { success: false, message: 'Appointment not found.' };
+    }
+
+    rowToUpdate.set('prescription', prescription);
+    await rowToUpdate.save();
+    return { success: true };
+  } catch (error) {
+    console.error("updatePrescription: Error", error);
+    return { success: false, message: 'Failed to update prescription.' };
+  }
 }

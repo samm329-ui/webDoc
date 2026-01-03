@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Phone, Mail, Calendar, Check, AlertCircle, Home, CalendarDays, Shield, Bell } from "lucide-react";
+import { Search, Phone, Mail, Calendar, Check, AlertCircle, Home, CalendarDays, Shield, Bell, FileText } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -13,6 +16,12 @@ export default function AdminUI({ appointments: initialAppointments }: { appoint
   const [search, setSearch] = useState("");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [prescriptionDialog, setPrescriptionDialog] = useState<{ open: boolean; appointmentId: string; currentPrescription: string }>({
+    open: false,
+    appointmentId: "",
+    currentPrescription: "",
+  });
+  const [prescriptionText, setPrescriptionText] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -49,6 +58,37 @@ export default function AdminUI({ appointments: initialAppointments }: { appoint
       alert("Failed to update status. Please try again.");
     } finally {
       setIsUpdating(null);
+    }
+  };
+
+  const openPrescriptionDialog = (appointmentId: string, currentPrescription: string) => {
+    setPrescriptionDialog({ open: true, appointmentId, currentPrescription });
+    setPrescriptionText(currentPrescription || "");
+  };
+
+  const savePrescription = async () => {
+    const { appointmentId } = prescriptionDialog;
+
+    try {
+      const res = await fetch('/api/appointments', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointment_id: appointmentId, prescription: prescriptionText }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update prescription');
+      }
+
+      // Update local state
+      setAppointments(prev =>
+        prev.map(a => a.appointment_id === appointmentId ? { ...a, prescription: prescriptionText } : a)
+      );
+
+      setPrescriptionDialog({ open: false, appointmentId: "", currentPrescription: "" });
+      alert("Prescription updated successfully!");
+    } catch (error) {
+      alert("Failed to update prescription. Please try again.");
     }
   };
 
@@ -143,25 +183,84 @@ export default function AdminUI({ appointments: initialAppointments }: { appoint
                     Note: {a.notes}
                   </div>
                 )}
+
+                {a.prescription && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText className="w-3 h-3 text-blue-600" />
+                      <span className="text-xs font-semibold text-blue-600">Prescription</span>
+                    </div>
+                    <p className="text-xs text-slate-600 line-clamp-2">{a.prescription}</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Bottom Toggle Section */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/80 -mx-5 -mb-5 px-5 py-4 rounded-b-3xl">
-              <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                {a.diagnosed && <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm"><Check className="w-3.5 h-3.5" /></div>}
-                Mark Diagnosed
-              </span>
-              <Switch
-                checked={a.diagnosed}
-                onCheckedChange={() => toggleStatus(a.appointment_id, a.diagnosed)}
-                disabled={isUpdating === a.appointment_id}
-                className="data-[state=checked]:bg-green-500 border-2 border-slate-200 data-[state=checked]:border-green-600 h-6 w-11 shadow-inner"
-              />
+            {/* Bottom Actions */}
+            <div className="space-y-2">
+              {/* Prescription Button */}
+              <Button
+                onClick={() => openPrescriptionDialog(a.appointment_id, a.prescription || "")}
+                variant="outline"
+                size="sm"
+                className="w-full text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+              >
+                <FileText className="w-3 h-3 mr-2" />
+                {a.prescription ? "Edit Prescription" : "Add Prescription"}
+              </Button>
+
+              {/* Toggle Diagnosed */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between bg-slate-50/80 -mx-5 px-5 py-4 rounded-b-3xl -mb-5">
+                <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  {a.diagnosed && <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm"><Check className="w-3.5 h-3.5" /></div>}
+                  Mark Diagnosed
+                </span>
+                <Switch
+                  checked={a.diagnosed}
+                  onCheckedChange={() => toggleStatus(a.appointment_id, a.diagnosed)}
+                  disabled={isUpdating === a.appointment_id}
+                  className="data-[state=checked]:bg-green-500 border-2 border-slate-200 data-[state=checked]:border-green-600 h-6 w-11 shadow-inner"
+                />
+              </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Prescription Dialog */}
+      <Dialog open={prescriptionDialog.open} onOpenChange={(open) => setPrescriptionDialog({ ...prescriptionDialog, open })}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              {prescriptionDialog.currentPrescription ? "Edit Prescription" : "Add Prescription"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="prescription" className="text-sm font-medium">
+                Medicines & Doses
+              </label>
+              <Textarea
+                id="prescription"
+                placeholder="Enter medicines, dosages, and instructions...&#10;&#10;Example:&#10;1. Amoxicillin 500mg - 3 times daily for 7 days&#10;2. Ibuprofen 400mg - as needed for pain"
+                value={prescriptionText}
+                onChange={(e) => setPrescriptionText(e.target.value)}
+                rows={8}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrescriptionDialog({ open: false, appointmentId: "", currentPrescription: "" })}>
+              Cancel
+            </Button>
+            <Button onClick={savePrescription} className="bg-blue-600 hover:bg-blue-700">
+              Save Prescription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile Nav (Visual Only) */}
       <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-full px-8 py-4 flex items-center gap-8 z-50">
